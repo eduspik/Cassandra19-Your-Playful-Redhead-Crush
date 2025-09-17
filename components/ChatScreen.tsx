@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Message } from '../types';
 import { createChatSession, sendMessage } from '../services/geminiService';
@@ -54,8 +53,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ systemInstruction, fileName }) 
     setError(null);
 
     try {
-      // FIX: The `sendMessage` function is an async generator and returns an iterator directly.
-      // The `await` keyword is not needed here and is incorrect.
+      // The `sendMessage` function returns an async iterator, which is consumed using a `for await...of` loop.
       const stream = sendMessage(chat, input);
       let modelResponse = '';
       setMessages((prev) => [...prev, { role: 'model', content: '' }]);
