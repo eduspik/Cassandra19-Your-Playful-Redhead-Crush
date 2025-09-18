@@ -8,25 +8,38 @@ interface ChatMessageProps {
 const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
   const isModel = message.role === 'model';
 
-  // Función para encontrar URLs en el texto y envolverlas en etiquetas de anclaje
-  const linkify = (text: string) => {
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    return text.split(urlRegex).map((part, index) => {
-      if (part.match(urlRegex)) {
-        return (
-          <a
-            key={index}
-            href={part}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-purple-400 hover:underline"
-          >
-            {part}
-          </a>
-        );
-      }
-      return part;
-    });
+  // Función para encontrar y formatear URLs y texto en negrita (**texto**)
+  const formatContent = (text: string) => {
+    // La expresión regular divide el texto por URLs o texto en negrita, pero mantiene
+    // los delimitadores (URLs, texto en negrita) en el array resultante gracias a los paréntesis de captura.
+    const parts = text.split(/(\*\*.+?\*\*|https?:\/\/[^\s.,!?]+)/g);
+
+    return parts
+      // Filtra cualquier cadena vacía que pueda resultar de la división.
+      .filter(part => part)
+      .map((part, index) => {
+        // Comprueba si la parte es una URL.
+        if (/^https?:\/\//.test(part)) {
+          return (
+            <a
+              key={index}
+              href={part}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-purple-400 hover:underline"
+            >
+              {part}
+            </a>
+          );
+        }
+        // Comprueba si la parte es texto en negrita.
+        if (part.startsWith('**') && part.endsWith('**')) {
+          // Extrae el texto de entre los asteriscos para ponerlo en negrita.
+          return <strong key={index}>{part.substring(2, part.length - 2)}</strong>;
+        }
+        // Si no es ninguno de los anteriores, es texto normal.
+        return part;
+      });
   };
 
   return (
@@ -38,7 +51,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
             : 'bg-purple-600 text-white rounded-br-none'
         }`}
       >
-        {linkify(message.content)}
+        {formatContent(message.content)}
       </div>
     </div>
   );

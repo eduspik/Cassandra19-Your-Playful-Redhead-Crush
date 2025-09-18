@@ -28,6 +28,10 @@ export async function* sendMessage(chat: Chat, message: string): AsyncGenerator<
   const result = await chat.sendMessageStream({ message });
 
   for await (const chunk of result) {
-    yield chunk.text;
+    // FIX: Add a check to ensure chunk.text is not null or undefined before yielding.
+    // This prevents the "undefined" string from appearing in the chat.
+    if (chunk && chunk.text) {
+        yield chunk.text;
+    }
   }
 }
