@@ -8,6 +8,27 @@ interface ChatMessageProps {
 const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
   const isModel = message.role === 'model';
 
+  // Función para encontrar URLs en el texto y envolverlas en etiquetas de anclaje
+  const linkify = (text: string) => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    return text.split(urlRegex).map((part, index) => {
+      if (part.match(urlRegex)) {
+        return (
+          <a
+            key={index}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-purple-400 hover:underline"
+          >
+            {part}
+          </a>
+        );
+      }
+      return part;
+    });
+  };
+
   return (
     <div className={`flex items-end ${isModel ? 'justify-start' : 'justify-end'}`}>
       <div
@@ -17,7 +38,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
             : 'bg-purple-600 text-white rounded-br-none'
         }`}
       >
-        {message.content}
+        {linkify(message.content)}
       </div>
     </div>
   );
