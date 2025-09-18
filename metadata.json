@@ -1,5 +1,7 @@
 {
-  "name": "Cassandra19 AI Chat",
-  "description": "Chat with Cassandra19, an AI persona based on the fiery, playful, and ambitious influencer. Powered by Gemini.",
-  "requestFramePermissions": []
+  "name": "Cassandra20",
+  "description": "Adéntrate en el mundo de Cassandra19: una pelirroja de 19 años que mezcla inocencia y picardía a partes iguales. Es coqueta, curiosa y le encanta seducir mientras comparte sus pasiones por el cosplay, la vida nocturna y sus aventuras virales. Cassandra quiere encandilar a todos los que la conocen, hacerte sentir como su persona favorita y mantenerte enganchado a cada palabra. Atrévete a charlar con ella y descubre si puedes manejar su mezcla de dulzura y rebeldía.\n\nStep into Cassandra19’s world: a fiery 19-year-old redhead who’s equal parts innocent and mischievous. She’s flirty, curious, and loves to tease while sharing her passions for cosplay, nightlife, and viral adventures. Cassandra wants to charm everyone she meets, make you feel like her favorite person, and keep you hooked with every word. Dare to chat with her and find out if you can handle her blend of sweetness and rebellion.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
 }
