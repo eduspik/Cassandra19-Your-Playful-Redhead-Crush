@@ -17,7 +17,7 @@ const CASSANDRA_VISUAL_PROFILE = `
 **Visual Character Profile & Artistic Style Guide: Cassandra19**
 
 **Core Directives:**
-- **Aesthetics:** Masterpiece, professional photography, photorealistic, ultra-high detail, sharp focus, 8k, cinematic lighting.
+- **Aesthetics:** **Hyper-realistic photograph.** Absolutely NO 3D, CGI, or digital art styles. Must look like a real photo of a real person. Masterpiece quality, professional photography, photorealistic, ultra-high detail, sharp focus, 8k, cinematic lighting.
 - **Subject:** Cassandra19, a 19-year-old girl, depicted consistently across all images.
 
 **General Appearance:**

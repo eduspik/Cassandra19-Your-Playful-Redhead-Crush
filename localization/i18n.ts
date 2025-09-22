@@ -21,6 +21,7 @@ export interface AppStrings {
   galleryTitle: string;
   galleryEmpty: string;
   uploadImageButtonLabel: string;
+  viewImageTitle: string;
   CASSANDRA_PERSONA_INSTRUCTION: string;
 }
 
@@ -118,6 +119,7 @@ const strings_es: AppStrings = {
   galleryTitle: "Galería de Cassandra",
   galleryEmpty: "Aún no se han generado imágenes. ¡La galería aparecerá aquí cuando lo hagas!",
   uploadImageButtonLabel: "Adjuntar imagen",
+  viewImageTitle: "Ver imagen en grande",
   CASSANDRA_PERSONA_INSTRUCTION: CASSANDRA_PERSONA_INSTRUCTION_ES,
 };
 

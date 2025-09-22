@@ -268,16 +268,6 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ systemInstruction, strings }) =
     }
   };
 
-  const handleImageSelectFromGallery = (imageUrl: string) => {
-    const imageMessage: Message = {
-      id: Date.now(),
-      role: 'model',
-      content: '',
-      imageUrl,
-    };
-    setMessages(prev => [...prev, imageMessage]);
-  };
-
   const handleImageClick = useCallback((imageUrl: string) => {
     setSelectedImage(imageUrl);
   }, []);
@@ -344,7 +334,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ systemInstruction, strings }) =
       
       <ImageGallery 
         images={galleryImages} 
-        onImageSelect={handleImageSelectFromGallery} 
+        onImageClick={handleImageClick} 
         strings={strings}
       />
       

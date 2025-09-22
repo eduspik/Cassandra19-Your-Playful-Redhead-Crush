@@ -4,11 +4,11 @@ import { AppStrings } from '../localization/i18n';
 
 interface ImageGalleryProps {
   images: GalleryImage[];
-  onImageSelect: (imageUrl: string) => void;
+  onImageClick: (imageUrl: string) => void;
   strings: AppStrings;
 }
 
-const ImageGallery: React.FC<ImageGalleryProps> = ({ images, onImageSelect, strings }) => {
+const ImageGallery: React.FC<ImageGalleryProps> = ({ images, onImageClick, strings }) => {
   if (!images || images.length === 0) {
     return (
       <div className="p-4 pt-0 text-center text-gray-500 text-sm">
@@ -26,8 +26,8 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({ images, onImageSelect, stri
             <div 
               key={index} 
               className="aspect-square bg-gray-700 rounded-lg overflow-hidden cursor-pointer group relative shadow-md hover:shadow-purple-500/30" 
-              onClick={() => onImageSelect(image.imageUrl)}
-              title={`Re-enviar imagen: ${image.prompt}`}
+              onClick={() => onImageClick(image.imageUrl)}
+              title={`${strings.viewImageTitle}: ${image.prompt}`}
             >
               <img
                 src={image.imageUrl}
