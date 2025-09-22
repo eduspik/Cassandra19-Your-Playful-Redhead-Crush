@@ -17,8 +17,6 @@ export interface AppStrings {
   speechErrorAudioCapture: string;
   clearChatButtonLabel: string;
   clearChatConfirmation: string;
-  enableTtsButtonLabel: string;
-  disableTtsButtonLabel: string;
   imageGenError: string;
   galleryTitle: string;
   galleryEmpty: string;
@@ -108,8 +106,6 @@ const strings_es: AppStrings = {
   speechErrorAudioCapture: "Error al capturar audio. Revisa tu micrófono.",
   clearChatButtonLabel: "Limpiar chat",
   clearChatConfirmation: "¿Estás seguro de que quieres limpiar el historial de chat? Esta acción no se puede deshacer.",
-  enableTtsButtonLabel: "Activar voz de Cassandra",
-  disableTtsButtonLabel: "Desactivar voz de Cassandra",
   imageGenError: "Lo siento, mi amor... no pude crear esa foto para ti ahora mismo. 🥺",
   galleryTitle: "Galería de Cassandra",
   galleryEmpty: "Aún no se han generado imágenes. ¡La galería aparecerá aquí cuando lo hagas!",

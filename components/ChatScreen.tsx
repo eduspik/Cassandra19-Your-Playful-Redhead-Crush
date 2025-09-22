@@ -5,7 +5,7 @@ import * as galleryService from '../services/galleryService';
 import { Chat } from '@google/genai';
 import ChatMessage from './ChatMessage';
 import ImageGallery from './ImageGallery';
-import { SendIcon, MicrophoneIcon, TrashIcon, SpeakerWaveIcon, SpeakerXMarkIcon } from './icons';
+import { SendIcon, MicrophoneIcon, TrashIcon } from './icons';
 import { AppStrings } from '../localization/i18n';
 
 // FIX: Add type definitions for the Web Speech API to resolve TypeScript errors.
@@ -71,11 +71,8 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ systemInstruction, strings }) =
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
-  const [isTtsEnabled, setIsTtsEnabled] = useState<boolean>(false);
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const prevIsLoadingRef = useRef<boolean>(false);
 
   useEffect(() => {
     const initChat = () => {
@@ -110,24 +107,8 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ systemInstruction, strings }) =
       }
     };
     initChat();
-    // Load TTS preference
-    const savedTtsPref = localStorage.getItem('cassandra-tts-enabled');
-    setIsTtsEnabled(savedTtsPref ? JSON.parse(savedTtsPref) : false);
 
   }, [systemInstruction, strings]);
-
-  useEffect(() => {
-    if ('speechSynthesis' in window) {
-      const loadVoices = () => setVoices(window.speechSynthesis.getVoices());
-      window.speechSynthesis.onvoiceschanged = loadVoices;
-      loadVoices();
-    }
-     return () => {
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
-    };
-  }, []);
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -135,9 +116,6 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ systemInstruction, strings }) =
     }
   }, [messages]);
   
-  useEffect(() => {
-    localStorage.setItem('cassandra-tts-enabled', JSON.stringify(isTtsEnabled));
-  }, [isTtsEnabled]);
 
   useEffect(() => {
     return () => {
@@ -153,68 +131,8 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ systemInstruction, strings }) =
 
   useEffect(scrollToBottom, [messages]);
 
-  const speak = useCallback((text: string) => {
-    if (!isTtsEnabled || !text.trim() || !('speechSynthesis' in window)) return;
-  
-    // Regex to remove a wide range of emojis and symbols
-    const emojiRegex = /(?:[\u2700-\u27bf]|(?:\ud83c[\udde6-\uddff]){2}|[\ud800-\udbff][\udc00-\udfff]|[\u0023-\u0039]\ufe0f?\u20e3|\u3299|\u3297|\u303d|\u3030|\u24c2|\ud83c[\udd70-\udd71]|\ud83c[\udd7e-\udd7f]|\ud83c\udd8e|\ud83c[\udd91-\udd9a]|\ud83c[\udde6-\uddff]|\ud83c[\ude01-\ude02]|\ud83c\ude1a|\ud83c\ude2f|\ud83c[\ude32-\ude3a]|\ud83c[\ude50-\ude51]|\u203c|\u2049|[\u25aa-\u25ab]|\u25b6|\u25c0|[\u25fb-\u25fe]|\u00a9|\u00ae|\u2122|\u2139|\ud83c\udc04|[\u2600-\u26ff]|\u2b05|\u2b06|\u2b07|\u2b1b|\u2b1c|\u2b50|\u2b55|\u231a|\u231b|\u2328|\u23cf|[\u23e9-\u23f3]|[\u23f8-\u23fa]|\ud83c\udccf|\u2934|\u2935|[\u2190-\u21ff])/g;
-    
-    // Remove markdown asterisks and emojis, then trim whitespace
-    const cleanedText = text.replace(/\*\*/g, '').replace(emojiRegex, '').trim();
-  
-    // If the text is empty after cleaning, do not proceed
-    if (!cleanedText) return;
-  
-    window.speechSynthesis.cancel();
-  
-    const utterance = new SpeechSynthesisUtterance(cleanedText);
-    
-    // Prioritize known high-quality voices first
-    const preferredVoices = [
-        "Google español de Estados Unidos", // High quality on Chrome (US Spanish)
-        "Microsoft Sabina Online (Natural) - Spanish (Mexico)", // High quality on Edge
-        "Paulina", // Common high-quality voice on macOS (Spanish - Mexico)
-        "Mónica", // Common high-quality voice on macOS (Spanish - Spain)
-    ];
-
-    let selectedVoice = voices.find(v => preferredVoices.includes(v.name) && v.lang.startsWith('es-'));
-
-    if (!selectedVoice) {
-      // Fallback to find any Spanish female voice
-      selectedVoice = voices.find(
-        (voice) => voice.lang.startsWith('es-') && /female|mujer/i.test(voice.name)
-      ) || voices.find( // Or any other known Spanish voice names
-        (voice) => voice.lang.startsWith('es-') && /(Helena|Laura|Elena)/i.test(voice.name)
-      ) || voices.find( // Finally, any Spanish voice
-        (voice) => voice.lang.startsWith('es-')
-      );
-    }
-    
-    if (selectedVoice) {
-      utterance.voice = selectedVoice;
-    }
-    
-    // Adjust pitch and rate for a more natural, youthful voice
-    utterance.pitch = 1.3; // Slightly higher pitch for a younger feel
-    utterance.rate = 1.1;  // Slightly faster speech to sound more natural
-    window.speechSynthesis.speak(utterance);
-  }, [isTtsEnabled, voices]);
-
-  useEffect(() => {
-    const wasLoading = prevIsLoadingRef.current;
-    if (wasLoading && !isLoading && messages.length > 0) {
-      const lastMessage = messages[messages.length - 1];
-      if (lastMessage.role === 'model' && lastMessage.content) {
-        speak(lastMessage.content);
-      }
-    }
-    prevIsLoadingRef.current = isLoading;
-  }, [isLoading, messages, speak]);
-
-
   const handleSend = useCallback(async () => {
     if (!input.trim() || !chat || isLoading) return;
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 
     const userMessage: Message = { id: Date.now(), role: 'user', content: input };
     setMessages((prev) => [...prev, userMessage]);
@@ -289,7 +207,6 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ systemInstruction, strings }) =
   };
   
   const handleMicClick = () => {
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     if (isRecording) {
       recognitionRef.current?.stop();
       return;
@@ -325,20 +242,9 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ systemInstruction, strings }) =
   
   const handleClearChat = () => {
     if (window.confirm(strings.clearChatConfirmation)) {
-      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
       localStorage.removeItem('cassandra-chat-history');
       setMessages([{ id: Date.now(), role: 'model', content: strings.initialGreeting }]);
     }
-  };
-
-  const toggleTts = () => {
-    setIsTtsEnabled(prev => {
-      const newState = !prev;
-      if (!newState && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
-      return newState;
-    });
   };
 
   const handleImageSelectFromGallery = (imageUrl: string) => {
@@ -361,14 +267,6 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ systemInstruction, strings }) =
             <p className="text-xs text-gray-400">{strings.chatSubtitle}</p>
         </div>
         <div className="flex items-center space-x-2">
-            <button
-            onClick={toggleTts}
-            className="p-2 rounded-full hover:bg-gray-700 transition-colors"
-            aria-label={isTtsEnabled ? strings.disableTtsButtonLabel : strings.enableTtsButtonLabel}
-            title={isTtsEnabled ? strings.disableTtsButtonLabel : strings.enableTtsButtonLabel}
-            >
-            {isTtsEnabled ? <SpeakerWaveIcon className="w-5 h-5 text-purple-400" /> : <SpeakerXMarkIcon className="w-5 h-5 text-gray-400" />}
-            </button>
             <button
             onClick={handleClearChat}
             className="p-2 rounded-full hover:bg-gray-700 transition-colors"
