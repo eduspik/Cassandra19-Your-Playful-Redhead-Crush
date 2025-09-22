@@ -5,7 +5,8 @@ import * as galleryService from '../services/galleryService';
 import { Chat } from '@google/genai';
 import ChatMessage from './ChatMessage';
 import ImageGallery from './ImageGallery';
-import { SendIcon, MicrophoneIcon, TrashIcon } from './icons';
+import ImageModal from './ImageModal';
+import { SendIcon, MicrophoneIcon, TrashIcon, PaperClipIcon, XIcon } from './icons';
 import { AppStrings } from '../localization/i18n';
 
 // FIX: Add type definitions for the Web Speech API to resolve TypeScript errors.
@@ -68,11 +69,14 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ systemInstruction, strings }) =
   const [messages, setMessages] = useState<Message[]>([]);
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [input, setInput] = useState('');
+  const [imageToSend, setImageToSend] = useState<{data: string; mimeType: string} | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const initChat = () => {
@@ -132,72 +136,89 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ systemInstruction, strings }) =
   useEffect(scrollToBottom, [messages]);
 
   const handleSend = useCallback(async () => {
-    if (!input.trim() || !chat || isLoading) return;
-
-    const userMessage: Message = { id: Date.now(), role: 'user', content: input };
-    setMessages((prev) => [...prev, userMessage]);
+    if ((!input.trim() && !imageToSend) || !chat || isLoading) return;
+  
+    const currentUserInput = input;
+    const currentImageToSend = imageToSend;
+  
+    // Reset state early for a responsive UI
     setInput('');
+    setImageToSend(null);
     setIsLoading(true);
     setError(null);
-
+  
+    // Create unique IDs
+    const userMessageId = Date.now();
+    const modelMessageId = userMessageId + 1;
+  
+    const userMessage: Message = {
+      id: userMessageId,
+      role: 'user',
+      content: currentUserInput,
+      imageUrl: currentImageToSend ? `data:${currentImageToSend.mimeType};base64,${currentImageToSend.data}` : undefined,
+    };
+    const modelPlaceholderMessage: Message = { id: modelMessageId, role: 'model', content: '' };
+  
+    setMessages((prev) => [...prev, userMessage, modelPlaceholderMessage]);
+  
     try {
-      const stream = sendMessage(chat, input);
+      const stream = sendMessage(chat, currentUserInput, currentImageToSend);
       let modelResponse = '';
-      const modelMessageId = Date.now();
-      setMessages((prev) => [...prev, { id: modelMessageId, role: 'model', content: '' }]);
-
+  
       for await (const chunk of stream) {
         modelResponse += chunk;
-        setMessages((prev) => {
-          const newMessages = [...prev];
-          const lastMessage = newMessages.find(m => m.id === modelMessageId);
-          if (lastMessage) {
-            lastMessage.content = modelResponse;
-          }
-          return newMessages;
-        });
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === modelMessageId ? { ...msg, content: modelResponse } : msg
+          )
+        );
       }
-
-      // After stream is complete, check for image tag
+  
       const imageTagRegex = /\[SEND_IMAGE:\s*(.*?)\]/im;
       const match = modelResponse.match(imageTagRegex);
       const finalModelText = modelResponse.replace(imageTagRegex, '').trim();
-      
-      // Update the final text message without the tag
-      setMessages((prev) => prev.map(m => m.id === modelMessageId ? { ...m, content: finalModelText } : m));
-
+  
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === modelMessageId ? { ...m, content: finalModelText } : m
+        )
+      );
+  
       if (match && match[1]) {
         const imagePrompt = match[1];
+        const imageLoadingMessageId = modelMessageId + 1;
         const imageLoadingMessage: Message = {
-            id: Date.now(),
-            role: 'model',
-            content: '',
-            imageUrl: 'loading'
+          id: imageLoadingMessageId,
+          role: 'model',
+          content: '',
+          imageUrl: 'loading',
         };
-        setMessages(prev => [...prev, imageLoadingMessage]);
-
+        setMessages((prev) => [...prev, imageLoadingMessage]);
+  
         try {
-            const imageUrl = await generateImage(imagePrompt);
-            const newGalleryImage: GalleryImage = { prompt: imagePrompt, imageUrl };
-            galleryService.addGalleryImage(newGalleryImage);
-            setGalleryImages(galleryService.getGalleryImages()); // Refresh gallery from source
-            setMessages(prev => prev.map(m => m.id === imageLoadingMessage.id ? { ...m, imageUrl } : m));
+          const imageUrl = await generateImage(imagePrompt);
+          const newGalleryImage: GalleryImage = { prompt: imagePrompt, imageUrl };
+          galleryService.addGalleryImage(newGalleryImage);
+          setGalleryImages(galleryService.getGalleryImages());
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === imageLoadingMessageId ? { ...m, imageUrl } : m
+            )
+          );
         } catch (e) {
-            console.error("Image generation failed:", e);
-            setMessages(prev => prev.filter(m => m.id !== imageLoadingMessage.id));
-            setError(strings.imageGenError);
+          console.error("Image generation failed:", e);
+          setMessages((prev) => prev.filter((m) => m.id !== imageLoadingMessageId));
+          setError(strings.imageGenError);
         }
       }
-
     } catch (e: unknown) {
       const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred.';
       setError(strings.getAIResponseError(errorMessage));
-      // Remove the potentially empty model message on error
-      setMessages((prev) => prev.filter(m => m.content !== '' || m.role !== 'model'));
+      setMessages((prev) => prev.filter((m) => m.id !== modelMessageId));
     } finally {
       setIsLoading(false);
     }
-  }, [input, chat, isLoading, strings]);
+  }, [input, imageToSend, chat, isLoading, strings]);
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -257,6 +278,29 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ systemInstruction, strings }) =
     setMessages(prev => [...prev, imageMessage]);
   };
 
+  const handleImageClick = useCallback((imageUrl: string) => {
+    setSelectedImage(imageUrl);
+  }, []);
+
+  const handleCloseImageModal = useCallback(() => {
+    setSelectedImage(null);
+  }, []);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            if (typeof reader.result === 'string') {
+                const base64String = reader.result.split(',')[1];
+                setImageToSend({ data: base64String, mimeType: file.type });
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+    if (e.target) e.target.value = '';
+  };
+
   return (
     <div className="flex flex-col h-full">
       <header className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700 shadow-md">
@@ -280,9 +324,9 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ systemInstruction, strings }) =
       
       <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
         {messages.map((msg) => (
-          <ChatMessage key={msg.id} message={msg} />
+          <ChatMessage key={msg.id} message={msg} onImageClick={handleImageClick} />
         ))}
-        {isLoading && messages[messages.length - 1]?.role === 'user' && (
+        {isLoading && messages[messages.length - 1]?.role === 'model' && messages[messages.length - 1]?.content === '' && (
           <div className="flex justify-start">
             <div className="flex items-center space-x-2 bg-gray-700 rounded-2xl p-3 max-w-lg rounded-bl-none">
               <div className="flex space-x-1">
@@ -303,9 +347,36 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ systemInstruction, strings }) =
         onImageSelect={handleImageSelectFromGallery} 
         strings={strings}
       />
+      
+      {imageToSend && (
+        <div className="p-4 border-t border-gray-700 bg-gray-800 relative">
+          <img 
+            src={`data:${imageToSend.mimeType};base64,${imageToSend.data}`} 
+            alt="Image preview" 
+            className="max-h-24 rounded-lg" 
+          />
+          <button
+            onClick={() => setImageToSend(null)}
+            className="absolute top-2 right-2 p-1 bg-gray-900/70 rounded-full text-white hover:bg-gray-900"
+            aria-label="Remove image"
+          >
+            <XIcon className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       <footer className="p-4 bg-gray-800 border-t border-gray-700">
         <div className="flex items-center bg-gray-700 rounded-full px-4 py-2 focus-within:ring-2 focus-within:ring-purple-500 transition-all">
+          <input type="file" ref={fileInputRef} onChange={handleImageUpload} className="hidden" accept="image/*" />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isLoading}
+            className="mr-3 p-2 rounded-full hover:bg-gray-600 transition-colors disabled:opacity-50"
+            aria-label={strings.uploadImageButtonLabel}
+            title={strings.uploadImageButtonLabel}
+          >
+            <PaperClipIcon className="w-5 h-5 text-gray-300" />
+          </button>
           <input
             type="text"
             value={input}
@@ -326,7 +397,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ systemInstruction, strings }) =
           </button>
           <button
             onClick={handleSend}
-            disabled={isLoading || !input.trim() || isRecording}
+            disabled={isLoading || (!input.trim() && !imageToSend) || isRecording}
             className="ml-3 p-2 rounded-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
             aria-label="Send message"
           >
@@ -334,6 +405,13 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ systemInstruction, strings }) =
           </button>
         </div>
       </footer>
+
+      {selectedImage && (
+        <ImageModal 
+          imageUrl={selectedImage}
+          onClose={handleCloseImageModal}
+        />
+      )}
     </div>
   );
 };

@@ -1,5 +1,5 @@
 
-import { GoogleGenAI, Chat } from '@google/genai';
+import { GoogleGenAI, Chat, Part } from '@google/genai';
 
 // FIX: Per coding guidelines, the API key MUST be obtained from process.env.API_KEY.
 // Using import.meta.env is not compliant with the guidelines and caused a TypeScript error.
@@ -17,18 +17,31 @@ const CASSANDRA_VISUAL_PROFILE = `
 **Visual Character Profile & Artistic Style Guide: Cassandra19**
 
 **Core Directives:**
-- **Aesthetics:** Masterpiece, professional photography, photorealistic, ultra-high detail, sharp focus, 8k.
-- **Subject:** Cassandra, a 19-year-old girl.
+- **Aesthetics:** Masterpiece, professional photography, photorealistic, ultra-high detail, sharp focus, 8k, cinematic lighting.
+- **Subject:** Cassandra19, a 19-year-old girl, depicted consistently across all images.
 
 **General Appearance:**
-- **Hair:** Fiery, wavy redhead. Sometimes styled into braids or playful pigtails.
-- **Eyes:** Bright blue, sparkling with both sweetness and mischief, framed by long lashes.
-- **Skin:** Fair with a natural blush on her cheeks, giving a youthful, innocent look.
-- **Figure:** Slim and lively, with the energy of someone just stepping into adulthood.
+- **Hair:** Fiery, wavy redhead. Can be styled in braids or playful pigtails.
+- **Eyes:** Bright blue, sparkling with sweetness and mischief, framed by long lashes.
+- **Skin:** Fair with a natural blush on her cheeks, creating a youthful, innocent look.
+- **Figure:** Slim, lively, and energetic.
 
 **Style & Outfits:**
-- **Overall Style:** A mix of rebellious street fashion with provocative touches.
-- **Clothing:** Often wears short miniskirts`;
+- **Go-to Look:** Rebellious street fashion with provocative touches.
+- **Tops:** Cheeky crop tops or playful tees with game/anime references.
+- **Bottoms:** Short miniskirts (plaid or black leather).
+- **Accessories:** Chokers, fishnet stockings, chunky boots. Sometimes an oversized jacket over a revealing outfit.
+- **Cosplay:** Bold characters (superheroines, anime icons) with a flirty twist.
+
+**Expression & Vibe:**
+- **Smile:** Teasing, often with a slight lip-bite or a sly wink.
+- **Aura:** A mix of angelic charm and rebellious playfulness. Innocent at first glance, but with a daring, fearless side.
+
+**Settings & Scenes:**
+- **Club:** Neon-lit Berlin clubs, dark outfits, playful hairstyles.
+- **Home:** Her room glows with LED lights, posters, and gaming merchandise.
+- **Outdoors:** Urban backdrops like graffiti walls, rooftops, or late-night streets.
+`;
 
 // FIX: Implemented and exported the missing chat and image generation functions to resolve import errors in ChatScreen.tsx.
 
@@ -49,14 +62,36 @@ export const createChatSession = (systemInstruction: string): Chat => {
 /**
  * Sends a message to a chat and streams the response.
  * @param chat The Chat object.
- * @param message The user's message.
+ * @param message The user's text message.
+ * @param image Optional image data to send.
  * @returns An async generator yielding the text parts of the response.
  */
-export async function* sendMessage(chat: Chat, message: string): AsyncGenerator<string> {
-  const result = await chat.sendMessageStream({ message });
-  for await (const chunk of result) {
-    yield chunk.text;
-  }
+export async function* sendMessage(
+    chat: Chat, 
+    message: string,
+    image?: { data: string; mimeType: string }
+): AsyncGenerator<string> {
+    const parts: Part[] = [];
+
+    if (image) {
+        parts.push({
+            inlineData: {
+                data: image.data,
+                mimeType: image.mimeType,
+            },
+        });
+    }
+
+    if (message.trim()) {
+        parts.push({ text: message });
+    }
+
+    // FIX: The sendMessageStream method expects an object with a `message` property
+    // conforming to SendMessageParameters, not a direct array of parts.
+    const result = await chat.sendMessageStream({ message: parts });
+    for await (const chunk of result) {
+        yield chunk.text;
+    }
 }
 
 /**
@@ -77,7 +112,7 @@ export const generateImage = async (prompt: string): Promise<string> => {
         },
     });
 
-    if (response.generatedImages && response.generatedImages.length > 0) {
+    if (response.generatedImages && response.generatedImages.length > 0 && response.generatedImages[0].image?.imageBytes) {
         const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
         return `data:image/jpeg;base64,${base64ImageBytes}`;
     } else {
